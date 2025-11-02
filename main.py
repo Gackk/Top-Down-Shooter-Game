@@ -23,6 +23,39 @@ medium_font = pygame.font.SysFont(None, 40)
 large_font = pygame.font.SysFont(None, 80)
 clock = pygame.time.Clock()
 
+#   World/Room constants
+TILE = 32
+DOOR_W = WIDTH // 5  # right-edge door is 1/5 of the screen width
+SPAWN_POS = (32, HEIGHT // 2 - 10)  # where the player appears each room
+ROOM_ORDER = ["spawn", "enemy", "loot", "enemy", "portal"]  # list of the room order
+
+def make_border_walls():
+    walls = []
+    # top & bottom
+    walls.append(pygame.Rect(0, 0, WIDTH, TILE))
+    walls.append(pygame.Rect(0, HEIGHT - TILE, WIDTH, TILE))
+    # left wall
+    walls.append(pygame.Rect(0, 0, TILE, HEIGHT))
+    # right wall EXCEPT for door gap
+    gap_x = WIDTH - DOOR_W
+    # upper part of right wall
+    walls.append(pygame.Rect(WIDTH - TILE, 0, TILE, (HEIGHT - DOOR_W) // 2))
+    # lower part of right wall
+    lower_y = (HEIGHT + DOOR_W) // 2
+    walls.append(pygame.Rect(WIDTH - TILE, lower_y, TILE, HEIGHT - lower_y))
+    return walls
+
+# door trigger area (open space on the right)
+DOOR_TRIGGER = pygame.Rect(WIDTH - DOOR_W, (HEIGHT - DOOR_W)//2, DOOR_W, DOOR_W)
+
+class RoomData:
+    def __init__(self, kind, walls):
+        self.kind = kind          # "spawn" | "enemy" | "loot" | "portal"
+        self.walls = walls        # list[pygame.Rect]
+        self.locked = (kind == "enemy")  # step 1: ignore this, door acts open for now
+
+
+
 #   Button Class 
 
 class Button1:
@@ -116,6 +149,16 @@ class Heavy(Character):
 
 # Example player character
 player = Medium()
+
+#   Multi-room state
+rooms = [RoomData(k, make_border_walls()) for k in ROOM_ORDER]
+current_room_idx = 0
+
+def current_room():
+    return rooms[current_room_idx]
+
+# Set player to spawn position for first room
+player.x, player.y = SPAWN_POS
 
 # Main Loop
 
