@@ -1,3 +1,5 @@
+print(" RIGHt NOWWWWWWW YOU ARE Running:", __file__)
+
 import pygame
 import sys
 
@@ -46,7 +48,7 @@ def make_border_walls():
     return walls
 
 # door trigger area (open space on the right)
-DOOR_TRIGGER = pygame.Rect(WIDTH - DOOR_W, (HEIGHT - DOOR_W)//2, DOOR_W, DOOR_W)
+DOOR_TRIGGER = pygame.Rect(WIDTH + 99 - DOOR_W, (HEIGHT - DOOR_W)//2, DOOR_W, DOOR_W)
 
 class RoomData:
     def __init__(self, kind, walls):
@@ -113,6 +115,21 @@ settings_buttons = [
 
 # Character Classes
 class Character:
+    def rect(self, size=20):
+        return pygame.Rect(int(self.x), int(self.y), size, size)
+
+    def try_move(self, dx, dy, walls, size=20):
+        # Move X first
+        r = self.rect(size)
+        r.x += dx * self.speed
+        if not any(r.colliderect(w) for w in walls):
+            self.x = r.x
+
+        # Then move Y
+        r.y = int(self.y) + dy * self.speed
+        if not any(r.colliderect(w) for w in walls):
+            self.y = r.y
+            
     def __init__(self, name, maxhealth, speed):
         self.name = name
         self.maxplayerhealth = maxhealth
@@ -120,20 +137,17 @@ class Character:
         self.speed = speed
         self.x = 300
         self.y = 300
-# Movement method
-    def move(self, dx, dy):
-        self.x += dx * self.speed
-        self.y += dy * self.speed
-# Keep character within screen bounds  
-    def clamp_position(self, width, height, size=20):
-        if self.x < 0:
-            self.x = 0
-        if self.y < 0:
-            self.y = 0
-        if self.x > width - size:
-            self.x = width - size
-        if self.y > height - size:
-            self.y = height - size
+#   Movement with collision
+def try_move(self, dx, dy, walls, size=20):
+    # move X
+    new_rect = pygame.Rect(int(self.x), int(self.y), size, size)
+    new_rect.x += dx * self.speed
+    if not any(new_rect.colliderect(w) for w in walls):
+        self.x = new_rect.x
+    # move Y
+    new_rect.y = int(self.y) + dy * self.speed
+    if not any(new_rect.colliderect(w) for w in walls):
+        self.y = new_rect.y
 
 class Light(Character):
     def __init__(self):
@@ -148,7 +162,7 @@ class Heavy(Character):
         super().__init__("Heavy",maxhealth=100, speed=2)
 
 # Example player character
-player = Medium()
+player = Heavy()
 
 #   Multi-room state
 rooms = [RoomData(k, make_border_walls()) for k in ROOM_ORDER]
@@ -165,35 +179,16 @@ player.x, player.y = SPAWN_POS
 running = True
 while running:
     screen.fill(WHITE)
-
     keys = pygame.key.get_pressed()
     dx, dy = 0, 0
-    if keys[pygame.K_a]:
-        dx = -1
-    if keys[pygame.K_d]:
-        dx = 1
-    if keys[pygame.K_w]:
-        dy = -1
-    if keys[pygame.K_s]:
-        dy = 1
-    player.move(dx, dy)
-
-# Keep player within bounds
-
-    if player.x < 0:
-        player.x = 0
-    if player.y < 0:
-        player.y = 0
-    if player.x > WIDTH - 20:
-        player.x = WIDTH - 20
-    if player.y > HEIGHT - 20:
-        player.y = HEIGHT - 20
+    if keys[pygame.K_a]: dx = -1
+    if keys[pygame.K_d]: dx = 1
+    if keys[pygame.K_w]: dy = -1
+    if keys[pygame.K_s]: dy = 1
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
-        # Handle button clicks based on screen
         if current_screen == "mainmenu":
             for button in menu_buttons:
                 button.check_click(event)
@@ -204,27 +199,56 @@ while running:
     # Draw based on current screen
     if current_screen == "mainmenu":
         text_surface = large_font.render("Main Menu", True, BLACK)
-        text_rect = text_surface.get_rect(center=(320, 100)) 
+        text_rect = text_surface.get_rect(center=(320, 100))
         screen.blit(text_surface, text_rect)
         for button in menu_buttons:
             button.draw(screen)
+
     elif current_screen == "settings":
         text_surface = medium_font.render("Settings Menu", True, BLACK)
         screen.blit(text_surface, (220, 150))
         for button in settings_buttons:
             button.draw(screen)
+
     elif current_screen == "game":
-        screen.fill(BLACK)
+        # World background
+        screen.fill((40, 40, 40))
+
+        # Move only in game and collide with current room walls
+        room = current_room()
+        player.try_move(dx, dy, room.walls, size=20)
+
+        # Draw walls
+        for w in room.walls:
+            pygame.draw.rect(screen, (80, 80, 80), w)
+            pygame.draw.rect(screen, (20, 20, 20), w, 2)
+
+        # Draw door area (right-edge window). For Step 1 it's always open.
+        pygame.draw.rect(screen, (150, 200, 255), DOOR_TRIGGER, 2)  # outline so it's visible
+
+        # Draw player
         if isinstance(player, Light):
-         pygame.draw.circle(screen, CYAN, (player.x, player.y), 15)
+            pygame.draw.circle(screen, CYAN, (int(player.x), int(player.y)), 15)
         elif isinstance(player, Medium):
-         pygame.draw.rect(screen, GREEN, (player.x, player.y, 20, 20))
+            pygame.draw.rect(screen, GREEN, (int(player.x), int(player.y), 20, 20))
         elif isinstance(player, Heavy):
-         points = [
-            (player.x, player.y - 15),  # top
-            (player.x - 15, player.y + 15),  # bottom-left
-            (player.x + 15, player.y + 15)   # bottom-right
-        ]
-         pygame.draw.polygon(screen, YELLOW, points)
+            points = [
+                (int(player.x), int(player.y) - 15),
+                (int(player.x) - 15, int(player.y) + 15),
+                (int(player.x) + 15, int(player.y) + 15)
+            ]
+            pygame.draw.polygon(screen, YELLOW, points)
+
+        # Room transition: if player reaches the door area, go to next room
+        player_rect = pygame.Rect(int(player.x), int(player.y), 20, 20)
+        if player_rect.colliderect(DOOR_TRIGGER):
+            if current_room_idx < len(rooms) - 1:
+                current_room_idx += 1
+                # reset player near left side
+                player.x, player.y = SPAWN_POS
+            else:
+                # reached end (portal room). For now, loop back to main menu
+                current_screen = "mainmenu"
+
     pygame.display.flip()
     clock.tick(60)
