@@ -137,17 +137,20 @@ class Character:
         self.speed = speed
         self.x = 300
         self.y = 300
-#   Movement with collision
-def try_move(self, dx, dy, walls, size=20):
-    # move X
-    new_rect = pygame.Rect(int(self.x), int(self.y), size, size)
-    new_rect.x += dx * self.speed
-    if not any(new_rect.colliderect(w) for w in walls):
-        self.x = new_rect.x
-    # move Y
-    new_rect.y = int(self.y) + dy * self.speed
-    if not any(new_rect.colliderect(w) for w in walls):
-        self.y = new_rect.y
+# Movement method
+    def move(self, dx, dy):
+        self.x += dx * self.speed
+        self.y += dy * self.speed
+# Keep character within screen bounds  
+    def clamp_position(self, width, height, size=20):
+        if self.x < 0:
+            self.x = 0
+        if self.y < 0:
+            self.y = 0
+        if self.x > width - size:
+            self.x = width - size
+        if self.y > height - size:
+            self.y = height - size
 
 class Light(Character):
     def __init__(self):
